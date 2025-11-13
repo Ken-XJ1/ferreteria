@@ -1,0 +1,1035 @@
+--
+-- PostgreSQL database dump
+--
+
+\restrict 56IBLW3g0R3ARJXjKdI0sHTZpGLjxtR3VWgJzKaOjA2KbC3ReXtOUs4kdJ2Arud
+
+-- Dumped from database version 18.0
+-- Dumped by pg_dump version 18.0
+
+-- Started on 2025-11-12 23:53:45
+
+SET statement_timeout = 0;
+SET lock_timeout = 0;
+SET idle_in_transaction_session_timeout = 0;
+SET transaction_timeout = 0;
+SET client_encoding = 'UTF8';
+SET standard_conforming_strings = on;
+SELECT pg_catalog.set_config('search_path', '', false);
+SET check_function_bodies = false;
+SET xmloption = content;
+SET client_min_messages = warning;
+SET row_security = off;
+
+--
+-- TOC entry 237 (class 1255 OID 18038)
+-- Name: fn_registrar_auditoria(); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.fn_registrar_auditoria() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+    -- Si la operación es un INSERT (Crear)
+    IF (TG_OP = 'INSERT') THEN
+        INSERT INTO auditoria_eventos (tabla_afectada, accion, datos_nuevos)
+        VALUES (TG_TABLE_NAME, TG_OP, row_to_json(NEW));
+        RETURN NEW;
+
+    -- Si la operación es un UPDATE (Editar)
+    ELSIF (TG_OP = 'UPDATE') THEN
+        INSERT INTO auditoria_eventos (tabla_afectada, accion, datos_viejos, datos_nuevos)
+        VALUES (TG_TABLE_NAME, TG_OP, row_to_json(OLD), row_to_json(NEW));
+        RETURN NEW;
+
+    -- Si la operación es un DELETE (Eliminar)
+    ELSIF (TG_OP = 'DELETE') THEN
+        INSERT INTO auditoria_eventos (tabla_afectada, accion, datos_viejos)
+        VALUES (TG_TABLE_NAME, TG_OP, row_to_json(OLD));
+        RETURN OLD;
+        
+    END IF;
+END;
+$$;
+
+
+ALTER FUNCTION public.fn_registrar_auditoria() OWNER TO postgres;
+
+--
+-- TOC entry 238 (class 1255 OID 18151)
+-- Name: set_updated_at_usuarios(); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.set_updated_at_usuarios() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+  NEW.actualizado_en = now();
+  RETURN NEW;
+END;
+$$;
+
+
+ALTER FUNCTION public.set_updated_at_usuarios() OWNER TO postgres;
+
+SET default_tablespace = '';
+
+SET default_table_access_method = heap;
+
+--
+-- TOC entry 234 (class 1259 OID 18107)
+-- Name: auditoria; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.auditoria (
+    id integer NOT NULL,
+    usuario_admin_id integer,
+    accion text NOT NULL,
+    tabla_afectada character varying(50),
+    registro_afectado_id integer,
+    fecha_hora timestamp without time zone DEFAULT now()
+);
+
+
+ALTER TABLE public.auditoria OWNER TO postgres;
+
+--
+-- TOC entry 226 (class 1259 OID 18025)
+-- Name: auditoria_eventos; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.auditoria_eventos (
+    id integer NOT NULL,
+    fecha_hora timestamp with time zone DEFAULT now(),
+    usuario_db character varying(100) DEFAULT CURRENT_USER,
+    tabla_afectada character varying(100) NOT NULL,
+    accion character varying(10) NOT NULL,
+    datos_viejos jsonb,
+    datos_nuevos jsonb,
+    id_registro integer
+);
+
+
+ALTER TABLE public.auditoria_eventos OWNER TO postgres;
+
+--
+-- TOC entry 225 (class 1259 OID 18024)
+-- Name: auditoria_eventos_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.auditoria_eventos_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.auditoria_eventos_id_seq OWNER TO postgres;
+
+--
+-- TOC entry 5137 (class 0 OID 0)
+-- Dependencies: 225
+-- Name: auditoria_eventos_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.auditoria_eventos_id_seq OWNED BY public.auditoria_eventos.id;
+
+
+--
+-- TOC entry 233 (class 1259 OID 18106)
+-- Name: auditoria_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.auditoria_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.auditoria_id_seq OWNER TO postgres;
+
+--
+-- TOC entry 5138 (class 0 OID 0)
+-- Dependencies: 233
+-- Name: auditoria_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.auditoria_id_seq OWNED BY public.auditoria.id;
+
+
+--
+-- TOC entry 220 (class 1259 OID 17969)
+-- Name: categorias; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.categorias (
+    id integer NOT NULL,
+    nombre character varying(100) NOT NULL,
+    descripcion text
+);
+
+
+ALTER TABLE public.categorias OWNER TO postgres;
+
+--
+-- TOC entry 219 (class 1259 OID 17968)
+-- Name: categorias_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.categorias_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.categorias_id_seq OWNER TO postgres;
+
+--
+-- TOC entry 5139 (class 0 OID 0)
+-- Dependencies: 219
+-- Name: categorias_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.categorias_id_seq OWNED BY public.categorias.id;
+
+
+--
+-- TOC entry 232 (class 1259 OID 18083)
+-- Name: detalles_pedido; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.detalles_pedido (
+    id integer NOT NULL,
+    pedido_id integer NOT NULL,
+    producto_id integer NOT NULL,
+    cantidad integer NOT NULL,
+    precio_unitario numeric(10,2) NOT NULL,
+    CONSTRAINT detalles_pedido_cantidad_check CHECK ((cantidad > 0))
+);
+
+
+ALTER TABLE public.detalles_pedido OWNER TO postgres;
+
+--
+-- TOC entry 231 (class 1259 OID 18082)
+-- Name: detalles_pedido_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.detalles_pedido_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.detalles_pedido_id_seq OWNER TO postgres;
+
+--
+-- TOC entry 5140 (class 0 OID 0)
+-- Dependencies: 231
+-- Name: detalles_pedido_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.detalles_pedido_id_seq OWNED BY public.detalles_pedido.id;
+
+
+--
+-- TOC entry 228 (class 1259 OID 18042)
+-- Name: locales; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.locales (
+    id integer NOT NULL,
+    nombre character varying(100) NOT NULL,
+    direccion text,
+    disponible boolean DEFAULT true NOT NULL
+);
+
+
+ALTER TABLE public.locales OWNER TO postgres;
+
+--
+-- TOC entry 227 (class 1259 OID 18041)
+-- Name: locales_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.locales_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.locales_id_seq OWNER TO postgres;
+
+--
+-- TOC entry 5141 (class 0 OID 0)
+-- Dependencies: 227
+-- Name: locales_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.locales_id_seq OWNED BY public.locales.id;
+
+
+--
+-- TOC entry 236 (class 1259 OID 18130)
+-- Name: pedido_detalles; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.pedido_detalles (
+    id integer NOT NULL,
+    pedido_id integer NOT NULL,
+    producto_id integer NOT NULL,
+    cantidad integer NOT NULL,
+    precio_unitario numeric(10,2) NOT NULL
+);
+
+
+ALTER TABLE public.pedido_detalles OWNER TO postgres;
+
+--
+-- TOC entry 235 (class 1259 OID 18129)
+-- Name: pedido_detalles_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.pedido_detalles_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.pedido_detalles_id_seq OWNER TO postgres;
+
+--
+-- TOC entry 5142 (class 0 OID 0)
+-- Dependencies: 235
+-- Name: pedido_detalles_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.pedido_detalles_id_seq OWNED BY public.pedido_detalles.id;
+
+
+--
+-- TOC entry 230 (class 1259 OID 18057)
+-- Name: pedidos; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.pedidos (
+    id integer NOT NULL,
+    usuario_id integer,
+    local_id integer NOT NULL,
+    codigo_recibo character varying(20) NOT NULL,
+    fecha_pedido timestamp without time zone DEFAULT now(),
+    total numeric(10,2) NOT NULL,
+    estado character varying(20) DEFAULT 'Pendiente'::character varying NOT NULL,
+    fecha_creacion timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    tipo_entrega character varying(20) DEFAULT 'recogida'::character varying,
+    direccion_entrega text,
+    costo_envio numeric(10,2) DEFAULT 0
+);
+
+
+ALTER TABLE public.pedidos OWNER TO postgres;
+
+--
+-- TOC entry 229 (class 1259 OID 18056)
+-- Name: pedidos_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.pedidos_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.pedidos_id_seq OWNER TO postgres;
+
+--
+-- TOC entry 5143 (class 0 OID 0)
+-- Dependencies: 229
+-- Name: pedidos_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.pedidos_id_seq OWNED BY public.pedidos.id;
+
+
+--
+-- TOC entry 222 (class 1259 OID 17982)
+-- Name: productos; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.productos (
+    id integer NOT NULL,
+    sku character varying(50) NOT NULL,
+    nombre character varying(150) NOT NULL,
+    descripcion text,
+    precio numeric(10,2) NOT NULL,
+    stock integer DEFAULT 0 NOT NULL,
+    categoria_id integer,
+    CONSTRAINT productos_precio_check CHECK ((precio >= (0)::numeric)),
+    CONSTRAINT productos_stock_check CHECK ((stock >= 0))
+);
+
+
+ALTER TABLE public.productos OWNER TO postgres;
+
+--
+-- TOC entry 221 (class 1259 OID 17981)
+-- Name: productos_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.productos_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.productos_id_seq OWNER TO postgres;
+
+--
+-- TOC entry 5144 (class 0 OID 0)
+-- Dependencies: 221
+-- Name: productos_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.productos_id_seq OWNED BY public.productos.id;
+
+
+--
+-- TOC entry 224 (class 1259 OID 18006)
+-- Name: usuarios; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.usuarios (
+    id integer NOT NULL,
+    nombre_usuario character varying(50) NOT NULL,
+    email character varying(100) NOT NULL,
+    contrasena_hash character varying(255) NOT NULL,
+    rol character varying(20) DEFAULT 'empleado'::character varying NOT NULL,
+    intentos_fallidos integer DEFAULT 0,
+    bloqueado_hasta timestamp without time zone,
+    ultimo_intento timestamp without time zone,
+    nombre character varying(100),
+    bloqueado boolean DEFAULT false,
+    actualizado_en timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    creado_en timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT usuarios_rol_check CHECK (((rol)::text = ANY ((ARRAY['admin'::character varying, 'empleado'::character varying])::text[])))
+);
+
+
+ALTER TABLE public.usuarios OWNER TO postgres;
+
+--
+-- TOC entry 223 (class 1259 OID 18005)
+-- Name: usuarios_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.usuarios_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.usuarios_id_seq OWNER TO postgres;
+
+--
+-- TOC entry 5145 (class 0 OID 0)
+-- Dependencies: 223
+-- Name: usuarios_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.usuarios_id_seq OWNED BY public.usuarios.id;
+
+
+--
+-- TOC entry 4919 (class 2604 OID 18110)
+-- Name: auditoria id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.auditoria ALTER COLUMN id SET DEFAULT nextval('public.auditoria_id_seq'::regclass);
+
+
+--
+-- TOC entry 4907 (class 2604 OID 18028)
+-- Name: auditoria_eventos id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.auditoria_eventos ALTER COLUMN id SET DEFAULT nextval('public.auditoria_eventos_id_seq'::regclass);
+
+
+--
+-- TOC entry 4898 (class 2604 OID 17972)
+-- Name: categorias id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.categorias ALTER COLUMN id SET DEFAULT nextval('public.categorias_id_seq'::regclass);
+
+
+--
+-- TOC entry 4918 (class 2604 OID 18086)
+-- Name: detalles_pedido id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.detalles_pedido ALTER COLUMN id SET DEFAULT nextval('public.detalles_pedido_id_seq'::regclass);
+
+
+--
+-- TOC entry 4910 (class 2604 OID 18045)
+-- Name: locales id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.locales ALTER COLUMN id SET DEFAULT nextval('public.locales_id_seq'::regclass);
+
+
+--
+-- TOC entry 4921 (class 2604 OID 18133)
+-- Name: pedido_detalles id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.pedido_detalles ALTER COLUMN id SET DEFAULT nextval('public.pedido_detalles_id_seq'::regclass);
+
+
+--
+-- TOC entry 4912 (class 2604 OID 18060)
+-- Name: pedidos id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.pedidos ALTER COLUMN id SET DEFAULT nextval('public.pedidos_id_seq'::regclass);
+
+
+--
+-- TOC entry 4899 (class 2604 OID 17985)
+-- Name: productos id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.productos ALTER COLUMN id SET DEFAULT nextval('public.productos_id_seq'::regclass);
+
+
+--
+-- TOC entry 4901 (class 2604 OID 18009)
+-- Name: usuarios id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.usuarios ALTER COLUMN id SET DEFAULT nextval('public.usuarios_id_seq'::regclass);
+
+
+--
+-- TOC entry 5129 (class 0 OID 18107)
+-- Dependencies: 234
+-- Data for Name: auditoria; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.auditoria (id, usuario_admin_id, accion, tabla_afectada, registro_afectado_id, fecha_hora) FROM stdin;
+\.
+
+
+--
+-- TOC entry 5121 (class 0 OID 18025)
+-- Dependencies: 226
+-- Data for Name: auditoria_eventos; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.auditoria_eventos (id, fecha_hora, usuario_db, tabla_afectada, accion, datos_viejos, datos_nuevos, id_registro) FROM stdin;
+1	2025-11-11 23:39:53.871252-05	postgres	usuarios	INSERT	\N	{"id": 1, "rol": "admin", "email": "kenneth@gmail.com", "nombre_usuario": "Kenneth", "bloqueado_hasta": null, "contrasena_hash": "$2y$10$eUJhmnM07je73YG1HQd.QO6FFxr52Efye16JXp2ZRqALzcXQlin6O", "intentos_fallidos": 0}	\N
+2	2025-11-11 23:40:01.860662-05	postgres	usuarios	UPDATE	{"id": 1, "rol": "admin", "email": "kenneth@gmail.com", "nombre_usuario": "Kenneth", "bloqueado_hasta": null, "contrasena_hash": "$2y$10$eUJhmnM07je73YG1HQd.QO6FFxr52Efye16JXp2ZRqALzcXQlin6O", "intentos_fallidos": 0}	{"id": 1, "rol": "admin", "email": "kenneth@gmail.com", "nombre_usuario": "Kenneth", "bloqueado_hasta": null, "contrasena_hash": "$2y$10$eUJhmnM07je73YG1HQd.QO6FFxr52Efye16JXp2ZRqALzcXQlin6O", "intentos_fallidos": 0}	\N
+3	2025-11-11 23:49:32.195906-05	postgres	productos	INSERT	\N	{"id": 1, "sku": "H-001", "stock": 50, "nombre": "Martillo de Uña", "precio": 15.00, "descripcion": null, "categoria_id": 1}	\N
+4	2025-11-11 23:49:32.195906-05	postgres	productos	INSERT	\N	{"id": 2, "sku": "H-002", "stock": 120, "nombre": "Destornillador Phillips", "precio": 5.50, "descripcion": null, "categoria_id": 1}	\N
+5	2025-11-11 23:49:32.195906-05	postgres	productos	INSERT	\N	{"id": 3, "sku": "E-001", "stock": 500, "nombre": "Cable de 3mm (Metro)", "precio": 2.00, "descripcion": null, "categoria_id": 2}	\N
+6	2025-11-11 23:49:32.195906-05	postgres	productos	INSERT	\N	{"id": 4, "sku": "E-002", "stock": 80, "nombre": "Cinta Aislante", "precio": 3.25, "descripcion": null, "categoria_id": 2}	\N
+7	2025-11-12 00:20:21.166481-05	postgres	usuarios	UPDATE	{"id": 1, "rol": "admin", "email": "kenneth@gmail.com", "nombre_usuario": "Kenneth", "bloqueado_hasta": null, "contrasena_hash": "$2y$10$eUJhmnM07je73YG1HQd.QO6FFxr52Efye16JXp2ZRqALzcXQlin6O", "intentos_fallidos": 0}	{"id": 1, "rol": "admin", "email": "kenneth@gmail.com", "nombre_usuario": "Kenneth", "bloqueado_hasta": null, "contrasena_hash": "$2y$10$eUJhmnM07je73YG1HQd.QO6FFxr52Efye16JXp2ZRqALzcXQlin6O", "intentos_fallidos": 0}	\N
+8	2025-11-12 00:22:10.371427-05	postgres	usuarios	INSERT	\N	{"id": 2, "rol": "empleado", "email": "ranses@gmail.com", "nombre_usuario": "Ranses", "bloqueado_hasta": null, "contrasena_hash": "$2y$10$cf7MXGGoq7sMEmAR7DG5BOPRElI2XMDTtTmV3YUPqYXP44vM12XUy", "intentos_fallidos": 0}	\N
+9	2025-11-12 00:22:17.62782-05	postgres	usuarios	UPDATE	{"id": 2, "rol": "empleado", "email": "ranses@gmail.com", "nombre_usuario": "Ranses", "bloqueado_hasta": null, "contrasena_hash": "$2y$10$cf7MXGGoq7sMEmAR7DG5BOPRElI2XMDTtTmV3YUPqYXP44vM12XUy", "intentos_fallidos": 0}	{"id": 2, "rol": "empleado", "email": "ranses@gmail.com", "nombre_usuario": "Ranses", "bloqueado_hasta": null, "contrasena_hash": "$2y$10$cf7MXGGoq7sMEmAR7DG5BOPRElI2XMDTtTmV3YUPqYXP44vM12XUy", "intentos_fallidos": 0}	\N
+10	2025-11-12 00:22:53.872688-05	postgres	usuarios	UPDATE	{"id": 1, "rol": "admin", "email": "kenneth@gmail.com", "nombre_usuario": "Kenneth", "bloqueado_hasta": null, "contrasena_hash": "$2y$10$eUJhmnM07je73YG1HQd.QO6FFxr52Efye16JXp2ZRqALzcXQlin6O", "intentos_fallidos": 0}	{"id": 1, "rol": "admin", "email": "kenneth@gmail.com", "nombre_usuario": "Kenneth", "bloqueado_hasta": null, "contrasena_hash": "$2y$10$eUJhmnM07je73YG1HQd.QO6FFxr52Efye16JXp2ZRqALzcXQlin6O", "intentos_fallidos": 0}	\N
+11	2025-11-12 00:28:45.803957-05	postgres	usuarios	UPDATE	{"id": 1, "rol": "admin", "email": "kenneth@gmail.com", "nombre_usuario": "Kenneth", "bloqueado_hasta": null, "contrasena_hash": "$2y$10$eUJhmnM07je73YG1HQd.QO6FFxr52Efye16JXp2ZRqALzcXQlin6O", "intentos_fallidos": 0}	{"id": 1, "rol": "admin", "email": "kenneth@gmail.com", "nombre_usuario": "Kenneth", "bloqueado_hasta": null, "contrasena_hash": "$2y$10$eUJhmnM07je73YG1HQd.QO6FFxr52Efye16JXp2ZRqALzcXQlin6O", "intentos_fallidos": 0}	\N
+12	2025-11-12 00:53:00.052543-05	postgres	usuarios	UPDATE	{"id": 1, "rol": "admin", "email": "kenneth@gmail.com", "nombre_usuario": "Kenneth", "bloqueado_hasta": null, "contrasena_hash": "$2y$10$eUJhmnM07je73YG1HQd.QO6FFxr52Efye16JXp2ZRqALzcXQlin6O", "intentos_fallidos": 0}	{"id": 1, "rol": "admin", "email": "kenneth@gmail.com", "nombre_usuario": "Kenneth", "bloqueado_hasta": null, "contrasena_hash": "$2y$10$eUJhmnM07je73YG1HQd.QO6FFxr52Efye16JXp2ZRqALzcXQlin6O", "intentos_fallidos": 0}	\N
+13	2025-11-12 00:58:01.7304-05	postgres	usuarios	UPDATE	{"id": 1, "rol": "admin", "email": "kenneth@gmail.com", "nombre_usuario": "Kenneth", "bloqueado_hasta": null, "contrasena_hash": "$2y$10$eUJhmnM07je73YG1HQd.QO6FFxr52Efye16JXp2ZRqALzcXQlin6O", "intentos_fallidos": 0}	{"id": 1, "rol": "admin", "email": "kenneth@gmail.com", "nombre_usuario": "Kenneth", "bloqueado_hasta": null, "contrasena_hash": "$2y$10$eUJhmnM07je73YG1HQd.QO6FFxr52Efye16JXp2ZRqALzcXQlin6O", "intentos_fallidos": 0}	\N
+14	2025-11-12 01:03:58.2924-05	postgres	usuarios	UPDATE	{"id": 1, "rol": "admin", "email": "kenneth@gmail.com", "nombre_usuario": "Kenneth", "bloqueado_hasta": null, "contrasena_hash": "$2y$10$eUJhmnM07je73YG1HQd.QO6FFxr52Efye16JXp2ZRqALzcXQlin6O", "intentos_fallidos": 0}	{"id": 1, "rol": "admin", "email": "kenneth@gmail.com", "nombre_usuario": "Kenneth", "bloqueado_hasta": null, "contrasena_hash": "$2y$10$eUJhmnM07je73YG1HQd.QO6FFxr52Efye16JXp2ZRqALzcXQlin6O", "intentos_fallidos": 0}	\N
+15	2025-11-12 01:08:40.391221-05	postgres	usuarios	UPDATE	{"id": 1, "rol": "admin", "email": "kenneth@gmail.com", "nombre_usuario": "Kenneth", "bloqueado_hasta": null, "contrasena_hash": "$2y$10$eUJhmnM07je73YG1HQd.QO6FFxr52Efye16JXp2ZRqALzcXQlin6O", "intentos_fallidos": 0}	{"id": 1, "rol": "admin", "email": "kenneth@gmail.com", "nombre_usuario": "Kenneth", "bloqueado_hasta": null, "contrasena_hash": "$2y$10$eUJhmnM07je73YG1HQd.QO6FFxr52Efye16JXp2ZRqALzcXQlin6O", "intentos_fallidos": 0}	\N
+16	2025-11-12 01:20:08.622431-05	postgres	usuarios	UPDATE	{"id": 1, "rol": "admin", "email": "kenneth@gmail.com", "nombre_usuario": "Kenneth", "bloqueado_hasta": null, "contrasena_hash": "$2y$10$eUJhmnM07je73YG1HQd.QO6FFxr52Efye16JXp2ZRqALzcXQlin6O", "intentos_fallidos": 0}	{"id": 1, "rol": "admin", "email": "kenneth@gmail.com", "nombre_usuario": "Kenneth", "bloqueado_hasta": null, "contrasena_hash": "$2y$10$eUJhmnM07je73YG1HQd.QO6FFxr52Efye16JXp2ZRqALzcXQlin6O", "intentos_fallidos": 0}	\N
+17	2025-11-12 01:52:35.67605-05	postgres	usuarios	UPDATE	{"id": 2, "rol": "empleado", "email": "ranses@gmail.com", "nombre_usuario": "Ranses", "bloqueado_hasta": null, "contrasena_hash": "$2y$10$cf7MXGGoq7sMEmAR7DG5BOPRElI2XMDTtTmV3YUPqYXP44vM12XUy", "intentos_fallidos": 0}	{"id": 2, "rol": "empleado", "email": "ranses@gmail.com", "nombre_usuario": "Ranses", "bloqueado_hasta": null, "contrasena_hash": "$2y$10$cf7MXGGoq7sMEmAR7DG5BOPRElI2XMDTtTmV3YUPqYXP44vM12XUy", "intentos_fallidos": 0}	\N
+18	2025-11-12 02:06:39.009144-05	postgres	usuarios	UPDATE	{"id": 2, "rol": "empleado", "email": "ranses@gmail.com", "nombre_usuario": "Ranses", "bloqueado_hasta": null, "contrasena_hash": "$2y$10$cf7MXGGoq7sMEmAR7DG5BOPRElI2XMDTtTmV3YUPqYXP44vM12XUy", "intentos_fallidos": 0}	{"id": 2, "rol": "empleado", "email": "ranses@gmail.com", "nombre_usuario": "Ranses", "bloqueado_hasta": null, "contrasena_hash": "$2y$10$cf7MXGGoq7sMEmAR7DG5BOPRElI2XMDTtTmV3YUPqYXP44vM12XUy", "intentos_fallidos": 0}	\N
+19	2025-11-12 02:47:28.834406-05	postgres	usuarios	UPDATE	{"id": 2, "rol": "empleado", "email": "ranses@gmail.com", "nombre_usuario": "Ranses", "bloqueado_hasta": null, "contrasena_hash": "$2y$10$cf7MXGGoq7sMEmAR7DG5BOPRElI2XMDTtTmV3YUPqYXP44vM12XUy", "intentos_fallidos": 0}	{"id": 2, "rol": "empleado", "email": "ranses@gmail.com", "nombre_usuario": "Ranses", "bloqueado_hasta": null, "contrasena_hash": "$2y$10$cf7MXGGoq7sMEmAR7DG5BOPRElI2XMDTtTmV3YUPqYXP44vM12XUy", "intentos_fallidos": 0}	\N
+20	2025-11-12 02:49:11.794218-05	postgres	usuarios	UPDATE	{"id": 1, "rol": "admin", "email": "kenneth@gmail.com", "nombre_usuario": "Kenneth", "bloqueado_hasta": null, "contrasena_hash": "$2y$10$eUJhmnM07je73YG1HQd.QO6FFxr52Efye16JXp2ZRqALzcXQlin6O", "intentos_fallidos": 0}	{"id": 1, "rol": "admin", "email": "kenneth@gmail.com", "nombre_usuario": "Kenneth", "bloqueado_hasta": null, "contrasena_hash": "$2y$10$eUJhmnM07je73YG1HQd.QO6FFxr52Efye16JXp2ZRqALzcXQlin6O", "intentos_fallidos": 0}	\N
+41	2025-11-12 03:45:11.746793-05	postgres	productos	INSERT	\N	{"id": 35, "sku": "HM-001", "stock": 15, "nombre": "Martillo de Acero Profesional", "precio": 24.99, "descripcion": "Martillo con mango de fibra de vidrio y cabeza de acero forjado de 16 oz.", "categoria_id": 1}	\N
+42	2025-11-12 03:45:11.746793-05	postgres	productos	INSERT	\N	{"id": 36, "sku": "HM-002", "stock": 25, "nombre": "Juego de Destornilladores 6 Piezas", "precio": 18.50, "descripcion": "Set profesional de destornilladores planos y de estrella en medidas variadas.", "categoria_id": 1}	\N
+43	2025-11-12 03:45:11.746793-05	postgres	productos	INSERT	\N	{"id": 37, "sku": "HM-003", "stock": 30, "nombre": "Alicates Universales 8\\"", "precio": 12.75, "descripcion": "Alicates de corte diagonal con agarre cómodo. Perfectos para electricidad.", "categoria_id": 1}	\N
+44	2025-11-12 03:45:11.746793-05	postgres	productos	INSERT	\N	{"id": 38, "sku": "HM-004", "stock": 18, "nombre": "Llave Inglesa Ajustable 10\\"", "precio": 15.99, "descripcion": "Llave ajustable de alta calidad con mecanismo de precisión.", "categoria_id": 1}	\N
+45	2025-11-12 03:45:11.746793-05	postgres	productos	INSERT	\N	{"id": 39, "sku": "HM-005", "stock": 40, "nombre": "Cinta Métrica Professional 5m", "precio": 8.25, "descripcion": "Cinta métrica de 5 metros con bloqueo automático.", "categoria_id": 1}	\N
+46	2025-11-12 03:45:11.746793-05	postgres	productos	INSERT	\N	{"id": 40, "sku": "EL-001", "stock": 100, "nombre": "Cable Eléctrico THHN 2.5mm", "precio": 45.00, "descripcion": "Cable de cobre THHN 2.5mm² para instalaciones eléctricas.", "categoria_id": 2}	\N
+47	2025-11-12 03:45:11.746793-05	postgres	productos	INSERT	\N	{"id": 41, "sku": "EL-002", "stock": 60, "nombre": "Interruptor Simple Blanco", "precio": 4.75, "descripcion": "Interruptor de pared simple marca Schneider.", "categoria_id": 2}	\N
+48	2025-11-12 03:45:11.746793-05	postgres	productos	INSERT	\N	{"id": 42, "sku": "EL-003", "stock": 45, "nombre": "Tomacorriente Doble con Tierra", "precio": 6.50, "descripcion": "Tomacorriente doble con protección infantil.", "categoria_id": 2}	\N
+49	2025-11-12 03:45:11.746793-05	postgres	productos	INSERT	\N	{"id": 43, "sku": "EL-004", "stock": 80, "nombre": "Caja de Derivación 10x10cm", "precio": 3.25, "descripcion": "Caja plástica para derivaciones eléctricas.", "categoria_id": 2}	\N
+50	2025-11-12 03:45:11.746793-05	postgres	productos	INSERT	\N	{"id": 44, "sku": "EL-005", "stock": 35, "nombre": "Breaker Termomagnético 20A", "precio": 12.99, "descripcion": "Interruptor termomagnético 20 amperios.", "categoria_id": 2}	\N
+51	2025-11-12 03:45:11.746793-05	postgres	productos	INSERT	\N	{"id": 45, "sku": "FN-001", "stock": 50, "nombre": "Tubo PVC Agua 1/2\\" x 3m", "precio": 8.99, "descripcion": "Tubo de PVC para agua potable de 1/2 pulgada.", "categoria_id": 3}	\N
+52	2025-11-12 03:45:11.746793-05	postgres	productos	INSERT	\N	{"id": 46, "sku": "FN-002", "stock": 30, "nombre": "Llave de Paso Angular 1/2\\"", "precio": 7.50, "descripcion": "Llave de paso angular para agua de 1/2 pulgada.", "categoria_id": 3}	\N
+53	2025-11-12 03:45:11.746793-05	postgres	productos	INSERT	\N	{"id": 47, "sku": "FN-003", "stock": 100, "nombre": "Codo PVC 90° 1/2\\"", "precio": 1.25, "descripcion": "Codo de PVC de 90 grados para tuberías de agua.", "categoria_id": 3}	\N
+54	2025-11-12 03:45:11.746793-05	postgres	productos	INSERT	\N	{"id": 48, "sku": "FN-004", "stock": 15, "nombre": "Grifo Monomando Cocina", "precio": 35.00, "descripcion": "Grifo monomando para cocina con aerador.", "categoria_id": 3}	\N
+55	2025-11-12 03:45:11.746793-05	postgres	productos	INSERT	\N	{"id": 49, "sku": "FN-005", "stock": 25, "nombre": "Sifón para Lavadero", "precio": 12.75, "descripcion": "Sifón plástico para lavadero de cocina.", "categoria_id": 3}	\N
+56	2025-11-12 03:46:13.774079-05	postgres	usuarios	UPDATE	{"id": 1, "rol": "admin", "email": "kenneth@gmail.com", "nombre_usuario": "Kenneth", "bloqueado_hasta": null, "contrasena_hash": "$2y$10$eUJhmnM07je73YG1HQd.QO6FFxr52Efye16JXp2ZRqALzcXQlin6O", "intentos_fallidos": 0}	{"id": 1, "rol": "admin", "email": "kenneth@gmail.com", "nombre_usuario": "Kenneth", "bloqueado_hasta": null, "contrasena_hash": "$2y$10$eUJhmnM07je73YG1HQd.QO6FFxr52Efye16JXp2ZRqALzcXQlin6O", "intentos_fallidos": 0}	\N
+57	2025-11-12 03:46:53.252237-05	postgres	usuarios	UPDATE	{"id": 2, "rol": "empleado", "email": "ranses@gmail.com", "nombre_usuario": "Ranses", "bloqueado_hasta": null, "contrasena_hash": "$2y$10$cf7MXGGoq7sMEmAR7DG5BOPRElI2XMDTtTmV3YUPqYXP44vM12XUy", "intentos_fallidos": 0}	{"id": 2, "rol": "empleado", "email": "ranses@gmail.com", "nombre_usuario": "Ranses", "bloqueado_hasta": null, "contrasena_hash": "$2y$10$cf7MXGGoq7sMEmAR7DG5BOPRElI2XMDTtTmV3YUPqYXP44vM12XUy", "intentos_fallidos": 0}	\N
+58	2025-11-12 04:59:25.304043-05	postgres	usuarios	UPDATE	{"id": 1, "rol": "admin", "email": "kenneth@gmail.com", "nombre_usuario": "Kenneth", "bloqueado_hasta": null, "contrasena_hash": "$2y$10$eUJhmnM07je73YG1HQd.QO6FFxr52Efye16JXp2ZRqALzcXQlin6O", "intentos_fallidos": 0}	{"id": 1, "rol": "admin", "email": "kenneth@gmail.com", "nombre_usuario": "Kenneth", "bloqueado_hasta": null, "contrasena_hash": "$2y$10$eUJhmnM07je73YG1HQd.QO6FFxr52Efye16JXp2ZRqALzcXQlin6O", "intentos_fallidos": 0}	\N
+59	2025-11-12 06:53:20.360823-05	postgres	usuarios	INSERT	\N	{"id": 4, "rol": "admin", "email": "m@gmail.com", "nombre": "kenneth administrador", "bloqueado": false, "nombre_usuario": "m", "ultimo_intento": null, "bloqueado_hasta": null, "contrasena_hash": "$2y$10$NfdiJrc2LGTjCrSk149oxO8/3G.qQVB9/cc8eqFNtom6upBqc9Qqe", "intentos_fallidos": 0}	\N
+60	2025-11-12 06:53:47.117293-05	postgres	usuarios	INSERT	\N	{"id": 5, "rol": "admin", "email": "add@gmail.com", "nombre": "Kenneth Ranses", "bloqueado": false, "nombre_usuario": "add", "ultimo_intento": null, "bloqueado_hasta": null, "contrasena_hash": "$2y$10$cY/aAmalUwa/VjjO/Fj4fuSiOhxYeOfjzXehXZonAXNj4tr0D6WIe", "intentos_fallidos": 0}	\N
+61	2025-11-12 06:53:57.387799-05	postgres	usuarios	UPDATE	{"id": 5, "rol": "admin", "email": "add@gmail.com", "nombre": "Kenneth Ranses", "bloqueado": false, "nombre_usuario": "add", "ultimo_intento": null, "bloqueado_hasta": null, "contrasena_hash": "$2y$10$cY/aAmalUwa/VjjO/Fj4fuSiOhxYeOfjzXehXZonAXNj4tr0D6WIe", "intentos_fallidos": 0}	{"id": 5, "rol": "admin", "email": "add@gmail.com", "nombre": "Kenneth Ranses", "bloqueado": false, "nombre_usuario": "add", "ultimo_intento": "2025-11-12T06:53:57.387799", "bloqueado_hasta": null, "contrasena_hash": "$2y$10$cY/aAmalUwa/VjjO/Fj4fuSiOhxYeOfjzXehXZonAXNj4tr0D6WIe", "intentos_fallidos": 0}	\N
+62	2025-11-12 09:54:52.760466-05	postgres	usuarios	INSERT	\N	{"id": 6, "rol": "admin", "email": "adm@gmail.com", "nombre": "Kenneth Ranses", "bloqueado": false, "nombre_usuario": "adm", "ultimo_intento": null, "bloqueado_hasta": null, "contrasena_hash": "$2y$10$jfjiPqg862VaU2g0f7xcw.m/gJwEhS0T8.HUKNvkZF9K.NWPhgQ2u", "intentos_fallidos": 0}	\N
+63	2025-11-12 09:55:02.651731-05	postgres	usuarios	UPDATE	{"id": 6, "rol": "admin", "email": "adm@gmail.com", "nombre": "Kenneth Ranses", "bloqueado": false, "nombre_usuario": "adm", "ultimo_intento": null, "bloqueado_hasta": null, "contrasena_hash": "$2y$10$jfjiPqg862VaU2g0f7xcw.m/gJwEhS0T8.HUKNvkZF9K.NWPhgQ2u", "intentos_fallidos": 0}	{"id": 6, "rol": "admin", "email": "adm@gmail.com", "nombre": "Kenneth Ranses", "bloqueado": false, "nombre_usuario": "adm", "ultimo_intento": "2025-11-12T09:55:02.651731", "bloqueado_hasta": null, "contrasena_hash": "$2y$10$jfjiPqg862VaU2g0f7xcw.m/gJwEhS0T8.HUKNvkZF9K.NWPhgQ2u", "intentos_fallidos": 0}	\N
+64	2025-11-12 21:02:59.609347-05	postgres	productos	UPDATE	{"id": 44, "sku": "EL-005", "stock": 35, "nombre": "Breaker Termomagnético 20A", "precio": 12.99, "descripcion": "Interruptor termomagnético 20 amperios.", "categoria_id": 2}	{"id": 44, "sku": "EL-005", "stock": 34, "nombre": "Breaker Termomagnético 20A", "precio": 12.99, "descripcion": "Interruptor termomagnético 20 amperios.", "categoria_id": 2}	\N
+65	2025-11-12 21:03:47.643102-05	postgres	productos	UPDATE	{"id": 44, "sku": "EL-005", "stock": 34, "nombre": "Breaker Termomagnético 20A", "precio": 12.99, "descripcion": "Interruptor termomagnético 20 amperios.", "categoria_id": 2}	{"id": 44, "sku": "EL-005", "stock": 33, "nombre": "Breaker Termomagnético 20A", "precio": 12.99, "descripcion": "Interruptor termomagnético 20 amperios.", "categoria_id": 2}	\N
+66	2025-11-12 21:05:07.667842-05	postgres	usuarios	INSERT	\N	{"id": 7, "rol": "admin", "email": "usuario@gmail.com", "nombre": "usuario", "bloqueado": false, "nombre_usuario": "usuario", "ultimo_intento": null, "bloqueado_hasta": null, "contrasena_hash": "$2y$10$sSOC2/ym1jejbUjsZIG1XOS8pdwONBDOB7yO5lCqbEQ99XpRuCXGa", "intentos_fallidos": 0}	\N
+67	2025-11-12 21:05:31.457722-05	postgres	usuarios	INSERT	\N	{"id": 8, "rol": "admin", "email": "admin@gmail.com", "nombre": "admin", "bloqueado": false, "nombre_usuario": "admin", "ultimo_intento": null, "bloqueado_hasta": null, "contrasena_hash": "$2y$10$9gDcOVXXuStCYUq7wR7P7OK8Q6l80fhEbanw63.3VeG5G3xg0pulu", "intentos_fallidos": 0}	\N
+68	2025-11-12 21:07:10.933983-05	postgres	usuarios	UPDATE	{"id": 8, "rol": "admin", "email": "admin@gmail.com", "nombre": "admin", "bloqueado": false, "creado_en": "2025-11-12T21:07:03.135938", "actualizado_en": "2025-11-12T21:07:03.135938", "nombre_usuario": "admin", "ultimo_intento": null, "bloqueado_hasta": null, "contrasena_hash": "$2y$10$9gDcOVXXuStCYUq7wR7P7OK8Q6l80fhEbanw63.3VeG5G3xg0pulu", "intentos_fallidos": 0}	{"id": 8, "rol": "admin", "email": "admin@gmail.com", "nombre": "admin", "bloqueado": false, "creado_en": "2025-11-12T21:07:03.135938", "actualizado_en": "2025-11-12T21:07:10.933983", "nombre_usuario": "admin", "ultimo_intento": "2025-11-12T21:07:10.933983", "bloqueado_hasta": null, "contrasena_hash": "$2y$10$9gDcOVXXuStCYUq7wR7P7OK8Q6l80fhEbanw63.3VeG5G3xg0pulu", "intentos_fallidos": 0}	\N
+69	2025-11-12 21:07:23.552944-05	postgres	usuarios	UPDATE	{"id": 7, "rol": "admin", "email": "usuario@gmail.com", "nombre": "usuario", "bloqueado": false, "creado_en": "2025-11-12T21:07:03.135938", "actualizado_en": "2025-11-12T21:07:03.135938", "nombre_usuario": "usuario", "ultimo_intento": null, "bloqueado_hasta": null, "contrasena_hash": "$2y$10$sSOC2/ym1jejbUjsZIG1XOS8pdwONBDOB7yO5lCqbEQ99XpRuCXGa", "intentos_fallidos": 0}	{"id": 7, "rol": "admin", "email": "usuario@gmail.com", "nombre": "usuario", "bloqueado": false, "creado_en": "2025-11-12T21:07:03.135938", "actualizado_en": "2025-11-12T21:07:23.552944", "nombre_usuario": "usuario", "ultimo_intento": "2025-11-12T21:07:23.552944", "bloqueado_hasta": null, "contrasena_hash": "$2y$10$sSOC2/ym1jejbUjsZIG1XOS8pdwONBDOB7yO5lCqbEQ99XpRuCXGa", "intentos_fallidos": 0}	\N
+70	2025-11-12 21:07:56.192944-05	postgres	usuarios	UPDATE	{"id": 7, "rol": "admin", "email": "usuario@gmail.com", "nombre": "usuario", "bloqueado": false, "creado_en": "2025-11-12T21:07:03.135938", "actualizado_en": "2025-11-12T21:07:23.552944", "nombre_usuario": "usuario", "ultimo_intento": "2025-11-12T21:07:23.552944", "bloqueado_hasta": null, "contrasena_hash": "$2y$10$sSOC2/ym1jejbUjsZIG1XOS8pdwONBDOB7yO5lCqbEQ99XpRuCXGa", "intentos_fallidos": 0}	{"id": 7, "rol": "admin", "email": "usuario@gmail.com", "nombre": "usuario", "bloqueado": false, "creado_en": "2025-11-12T21:07:03.135938", "actualizado_en": "2025-11-12T21:07:56.192944", "nombre_usuario": "usuario", "ultimo_intento": "2025-11-12T21:07:56.192944", "bloqueado_hasta": null, "contrasena_hash": "$2y$10$sSOC2/ym1jejbUjsZIG1XOS8pdwONBDOB7yO5lCqbEQ99XpRuCXGa", "intentos_fallidos": 0}	\N
+\.
+
+
+--
+-- TOC entry 5115 (class 0 OID 17969)
+-- Dependencies: 220
+-- Data for Name: categorias; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.categorias (id, nombre, descripcion) FROM stdin;
+1	Herramientas Manuales	\N
+2	Electricidad	\N
+3	Fontanería	Tuberías, llaves de paso, grifos y accesorios de plomería
+\.
+
+
+--
+-- TOC entry 5127 (class 0 OID 18083)
+-- Dependencies: 232
+-- Data for Name: detalles_pedido; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.detalles_pedido (id, pedido_id, producto_id, cantidad, precio_unitario) FROM stdin;
+\.
+
+
+--
+-- TOC entry 5123 (class 0 OID 18042)
+-- Dependencies: 228
+-- Data for Name: locales; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.locales (id, nombre, direccion, disponible) FROM stdin;
+1	Local Principal	Calle 10 # 5-20, Centro	t
+2	Local Norte	Av. 25 # 100-50, Plaza Norte	t
+3	Local Sur	Carrera 7 Sur # 30-15, El Sur	f
+\.
+
+
+--
+-- TOC entry 5131 (class 0 OID 18130)
+-- Dependencies: 236
+-- Data for Name: pedido_detalles; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.pedido_detalles (id, pedido_id, producto_id, cantidad, precio_unitario) FROM stdin;
+1	6	44	1	12.99
+2	7	44	1	12.99
+\.
+
+
+--
+-- TOC entry 5125 (class 0 OID 18057)
+-- Dependencies: 230
+-- Data for Name: pedidos; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.pedidos (id, usuario_id, local_id, codigo_recibo, fecha_pedido, total, estado, fecha_creacion, tipo_entrega, direccion_entrega, costo_envio) FROM stdin;
+6	6	1	65FB16C7	2025-11-13 03:02:59	12.99	pendiente	2025-11-12 21:02:59.609347	recogida	\N	0.00
+7	6	1	3AB381AE	2025-11-13 03:03:47	12.99	pendiente	2025-11-12 21:03:47.643102	recogida	\N	0.00
+\.
+
+
+--
+-- TOC entry 5117 (class 0 OID 17982)
+-- Dependencies: 222
+-- Data for Name: productos; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.productos (id, sku, nombre, descripcion, precio, stock, categoria_id) FROM stdin;
+1	H-001	Martillo de Uña	\N	15.00	50	1
+2	H-002	Destornillador Phillips	\N	5.50	120	1
+3	E-001	Cable de 3mm (Metro)	\N	2.00	500	2
+4	E-002	Cinta Aislante	\N	3.25	80	2
+35	HM-001	Martillo de Acero Profesional	Martillo con mango de fibra de vidrio y cabeza de acero forjado de 16 oz.	24.99	15	1
+36	HM-002	Juego de Destornilladores 6 Piezas	Set profesional de destornilladores planos y de estrella en medidas variadas.	18.50	25	1
+37	HM-003	Alicates Universales 8"	Alicates de corte diagonal con agarre cómodo. Perfectos para electricidad.	12.75	30	1
+38	HM-004	Llave Inglesa Ajustable 10"	Llave ajustable de alta calidad con mecanismo de precisión.	15.99	18	1
+39	HM-005	Cinta Métrica Professional 5m	Cinta métrica de 5 metros con bloqueo automático.	8.25	40	1
+40	EL-001	Cable Eléctrico THHN 2.5mm	Cable de cobre THHN 2.5mm² para instalaciones eléctricas.	45.00	100	2
+41	EL-002	Interruptor Simple Blanco	Interruptor de pared simple marca Schneider.	4.75	60	2
+42	EL-003	Tomacorriente Doble con Tierra	Tomacorriente doble con protección infantil.	6.50	45	2
+43	EL-004	Caja de Derivación 10x10cm	Caja plástica para derivaciones eléctricas.	3.25	80	2
+45	FN-001	Tubo PVC Agua 1/2" x 3m	Tubo de PVC para agua potable de 1/2 pulgada.	8.99	50	3
+46	FN-002	Llave de Paso Angular 1/2"	Llave de paso angular para agua de 1/2 pulgada.	7.50	30	3
+47	FN-003	Codo PVC 90° 1/2"	Codo de PVC de 90 grados para tuberías de agua.	1.25	100	3
+48	FN-004	Grifo Monomando Cocina	Grifo monomando para cocina con aerador.	35.00	15	3
+49	FN-005	Sifón para Lavadero	Sifón plástico para lavadero de cocina.	12.75	25	3
+44	EL-005	Breaker Termomagnético 20A	Interruptor termomagnético 20 amperios.	12.99	33	2
+\.
+
+
+--
+-- TOC entry 5119 (class 0 OID 18006)
+-- Dependencies: 224
+-- Data for Name: usuarios; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.usuarios (id, nombre_usuario, email, contrasena_hash, rol, intentos_fallidos, bloqueado_hasta, ultimo_intento, nombre, bloqueado, actualizado_en, creado_en) FROM stdin;
+2	Ranses	ranses@gmail.com	$2y$10$cf7MXGGoq7sMEmAR7DG5BOPRElI2XMDTtTmV3YUPqYXP44vM12XUy	empleado	0	\N	\N	\N	f	2025-11-12 21:07:03.135938	2025-11-12 21:07:03.135938
+1	Kenneth	kenneth@gmail.com	$2y$10$eUJhmnM07je73YG1HQd.QO6FFxr52Efye16JXp2ZRqALzcXQlin6O	admin	0	\N	\N	\N	f	2025-11-12 21:07:03.135938	2025-11-12 21:07:03.135938
+4	m	m@gmail.com	$2y$10$NfdiJrc2LGTjCrSk149oxO8/3G.qQVB9/cc8eqFNtom6upBqc9Qqe	admin	0	\N	\N	kenneth administrador	f	2025-11-12 21:07:03.135938	2025-11-12 21:07:03.135938
+5	add	add@gmail.com	$2y$10$cY/aAmalUwa/VjjO/Fj4fuSiOhxYeOfjzXehXZonAXNj4tr0D6WIe	admin	0	\N	2025-11-12 06:53:57.387799	Kenneth Ranses	f	2025-11-12 21:07:03.135938	2025-11-12 21:07:03.135938
+6	adm	adm@gmail.com	$2y$10$jfjiPqg862VaU2g0f7xcw.m/gJwEhS0T8.HUKNvkZF9K.NWPhgQ2u	admin	0	\N	2025-11-12 09:55:02.651731	Kenneth Ranses	f	2025-11-12 21:07:03.135938	2025-11-12 21:07:03.135938
+8	admin	admin@gmail.com	$2y$10$9gDcOVXXuStCYUq7wR7P7OK8Q6l80fhEbanw63.3VeG5G3xg0pulu	admin	0	\N	2025-11-12 21:07:10.933983	admin	f	2025-11-12 21:07:10.933983	2025-11-12 21:07:03.135938
+7	usuario	usuario@gmail.com	$2y$10$sSOC2/ym1jejbUjsZIG1XOS8pdwONBDOB7yO5lCqbEQ99XpRuCXGa	admin	0	\N	2025-11-12 21:07:56.192944	usuario	f	2025-11-12 21:07:56.192944	2025-11-12 21:07:03.135938
+\.
+
+
+--
+-- TOC entry 5146 (class 0 OID 0)
+-- Dependencies: 225
+-- Name: auditoria_eventos_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public.auditoria_eventos_id_seq', 70, true);
+
+
+--
+-- TOC entry 5147 (class 0 OID 0)
+-- Dependencies: 233
+-- Name: auditoria_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public.auditoria_id_seq', 1, false);
+
+
+--
+-- TOC entry 5148 (class 0 OID 0)
+-- Dependencies: 219
+-- Name: categorias_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public.categorias_id_seq', 3, true);
+
+
+--
+-- TOC entry 5149 (class 0 OID 0)
+-- Dependencies: 231
+-- Name: detalles_pedido_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public.detalles_pedido_id_seq', 1, false);
+
+
+--
+-- TOC entry 5150 (class 0 OID 0)
+-- Dependencies: 227
+-- Name: locales_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public.locales_id_seq', 3, true);
+
+
+--
+-- TOC entry 5151 (class 0 OID 0)
+-- Dependencies: 235
+-- Name: pedido_detalles_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public.pedido_detalles_id_seq', 2, true);
+
+
+--
+-- TOC entry 5152 (class 0 OID 0)
+-- Dependencies: 229
+-- Name: pedidos_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public.pedidos_id_seq', 7, true);
+
+
+--
+-- TOC entry 5153 (class 0 OID 0)
+-- Dependencies: 221
+-- Name: productos_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public.productos_id_seq', 49, true);
+
+
+--
+-- TOC entry 5154 (class 0 OID 0)
+-- Dependencies: 223
+-- Name: usuarios_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public.usuarios_id_seq', 8, true);
+
+
+--
+-- TOC entry 4941 (class 2606 OID 18037)
+-- Name: auditoria_eventos auditoria_eventos_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.auditoria_eventos
+    ADD CONSTRAINT auditoria_eventos_pkey PRIMARY KEY (id);
+
+
+--
+-- TOC entry 4953 (class 2606 OID 18117)
+-- Name: auditoria auditoria_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.auditoria
+    ADD CONSTRAINT auditoria_pkey PRIMARY KEY (id);
+
+
+--
+-- TOC entry 4927 (class 2606 OID 17980)
+-- Name: categorias categorias_nombre_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.categorias
+    ADD CONSTRAINT categorias_nombre_key UNIQUE (nombre);
+
+
+--
+-- TOC entry 4929 (class 2606 OID 17978)
+-- Name: categorias categorias_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.categorias
+    ADD CONSTRAINT categorias_pkey PRIMARY KEY (id);
+
+
+--
+-- TOC entry 4951 (class 2606 OID 18094)
+-- Name: detalles_pedido detalles_pedido_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.detalles_pedido
+    ADD CONSTRAINT detalles_pedido_pkey PRIMARY KEY (id);
+
+
+--
+-- TOC entry 4943 (class 2606 OID 18055)
+-- Name: locales locales_nombre_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.locales
+    ADD CONSTRAINT locales_nombre_key UNIQUE (nombre);
+
+
+--
+-- TOC entry 4945 (class 2606 OID 18053)
+-- Name: locales locales_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.locales
+    ADD CONSTRAINT locales_pkey PRIMARY KEY (id);
+
+
+--
+-- TOC entry 4955 (class 2606 OID 18140)
+-- Name: pedido_detalles pedido_detalles_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.pedido_detalles
+    ADD CONSTRAINT pedido_detalles_pkey PRIMARY KEY (id);
+
+
+--
+-- TOC entry 4947 (class 2606 OID 18071)
+-- Name: pedidos pedidos_codigo_recibo_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.pedidos
+    ADD CONSTRAINT pedidos_codigo_recibo_key UNIQUE (codigo_recibo);
+
+
+--
+-- TOC entry 4949 (class 2606 OID 18069)
+-- Name: pedidos pedidos_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.pedidos
+    ADD CONSTRAINT pedidos_pkey PRIMARY KEY (id);
+
+
+--
+-- TOC entry 4931 (class 2606 OID 17997)
+-- Name: productos productos_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.productos
+    ADD CONSTRAINT productos_pkey PRIMARY KEY (id);
+
+
+--
+-- TOC entry 4933 (class 2606 OID 17999)
+-- Name: productos productos_sku_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.productos
+    ADD CONSTRAINT productos_sku_key UNIQUE (sku);
+
+
+--
+-- TOC entry 4935 (class 2606 OID 18023)
+-- Name: usuarios usuarios_email_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.usuarios
+    ADD CONSTRAINT usuarios_email_key UNIQUE (email);
+
+
+--
+-- TOC entry 4937 (class 2606 OID 18021)
+-- Name: usuarios usuarios_nombre_usuario_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.usuarios
+    ADD CONSTRAINT usuarios_nombre_usuario_key UNIQUE (nombre_usuario);
+
+
+--
+-- TOC entry 4939 (class 2606 OID 18019)
+-- Name: usuarios usuarios_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.usuarios
+    ADD CONSTRAINT usuarios_pkey PRIMARY KEY (id);
+
+
+--
+-- TOC entry 4965 (class 2620 OID 18152)
+-- Name: usuarios tg_updated_at_usuarios; Type: TRIGGER; Schema: public; Owner: postgres
+--
+
+CREATE TRIGGER tg_updated_at_usuarios BEFORE UPDATE ON public.usuarios FOR EACH ROW EXECUTE FUNCTION public.set_updated_at_usuarios();
+
+
+--
+-- TOC entry 4964 (class 2620 OID 18039)
+-- Name: productos tr_auditoria_productos; Type: TRIGGER; Schema: public; Owner: postgres
+--
+
+CREATE TRIGGER tr_auditoria_productos AFTER INSERT OR DELETE OR UPDATE ON public.productos FOR EACH ROW EXECUTE FUNCTION public.fn_registrar_auditoria();
+
+
+--
+-- TOC entry 4966 (class 2620 OID 18040)
+-- Name: usuarios tr_auditoria_usuarios; Type: TRIGGER; Schema: public; Owner: postgres
+--
+
+CREATE TRIGGER tr_auditoria_usuarios AFTER INSERT OR DELETE OR UPDATE ON public.usuarios FOR EACH ROW EXECUTE FUNCTION public.fn_registrar_auditoria();
+
+
+--
+-- TOC entry 4961 (class 2606 OID 18118)
+-- Name: auditoria auditoria_usuario_admin_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.auditoria
+    ADD CONSTRAINT auditoria_usuario_admin_id_fkey FOREIGN KEY (usuario_admin_id) REFERENCES public.usuarios(id) ON DELETE SET NULL;
+
+
+--
+-- TOC entry 4959 (class 2606 OID 18095)
+-- Name: detalles_pedido detalles_pedido_pedido_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.detalles_pedido
+    ADD CONSTRAINT detalles_pedido_pedido_id_fkey FOREIGN KEY (pedido_id) REFERENCES public.pedidos(id) ON DELETE CASCADE;
+
+
+--
+-- TOC entry 4960 (class 2606 OID 18100)
+-- Name: detalles_pedido detalles_pedido_producto_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.detalles_pedido
+    ADD CONSTRAINT detalles_pedido_producto_id_fkey FOREIGN KEY (producto_id) REFERENCES public.productos(id) ON DELETE RESTRICT;
+
+
+--
+-- TOC entry 4962 (class 2606 OID 18141)
+-- Name: pedido_detalles pedido_detalles_pedido_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.pedido_detalles
+    ADD CONSTRAINT pedido_detalles_pedido_id_fkey FOREIGN KEY (pedido_id) REFERENCES public.pedidos(id) ON DELETE CASCADE;
+
+
+--
+-- TOC entry 4963 (class 2606 OID 18146)
+-- Name: pedido_detalles pedido_detalles_producto_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.pedido_detalles
+    ADD CONSTRAINT pedido_detalles_producto_id_fkey FOREIGN KEY (producto_id) REFERENCES public.productos(id);
+
+
+--
+-- TOC entry 4957 (class 2606 OID 18077)
+-- Name: pedidos pedidos_local_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.pedidos
+    ADD CONSTRAINT pedidos_local_id_fkey FOREIGN KEY (local_id) REFERENCES public.locales(id) ON DELETE RESTRICT;
+
+
+--
+-- TOC entry 4958 (class 2606 OID 18072)
+-- Name: pedidos pedidos_usuario_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.pedidos
+    ADD CONSTRAINT pedidos_usuario_id_fkey FOREIGN KEY (usuario_id) REFERENCES public.usuarios(id) ON DELETE SET NULL;
+
+
+--
+-- TOC entry 4956 (class 2606 OID 18000)
+-- Name: productos productos_categoria_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.productos
+    ADD CONSTRAINT productos_categoria_id_fkey FOREIGN KEY (categoria_id) REFERENCES public.categorias(id) ON UPDATE CASCADE ON DELETE SET NULL;
+
+
+-- Completed on 2025-11-12 23:53:45
+
+--
+-- PostgreSQL database dump complete
+--
+
+\unrestrict 56IBLW3g0R3ARJXjKdI0sHTZpGLjxtR3VWgJzKaOjA2KbC3ReXtOUs4kdJ2Arud
+
